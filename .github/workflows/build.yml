@@ -1,0 +1,43 @@
+name: Build encrypted HTML video
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: Build phase
+        required: true
+        default: review
+        type: choice
+        options: [review, render]
+permissions:
+  contents: read
+concurrency:
+  group: html-video-build
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: '1'
+      DO_NOT_TRACK: '1'
+      HYPERFRAMES_TELEMETRY_DISABLED: '1'
+      RENDER_KEY: ${{ secrets.RENDER_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install free build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-liberation libnss3 libatk-bridge2.0-0 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2t64 > /tmp/dependencies.log 2>&1
+          npm install --no-audit --no-fund
+      - name: Build and verify
+        run: node build.mjs ${{ inputs.phase }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: encrypted-${{ inputs.phase }}-${{ github.run_id }}
+          path: output.enc
+          retention-days: 1
+          if-no-files-found: error
