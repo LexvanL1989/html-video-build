@@ -38,7 +38,12 @@ try{
  writeFileSync(resolve(out,'fingerprint-verification.json'),JSON.stringify({matches:true,files:Object.keys(fp).length}));
  console.log('Verified encrypted source; build phase started.');
  if(phase==='review'){
-  const r=run(hf,['snapshot','--range','3:8','--frames','8','--describe','false','--json'],{name:'motion-snapshot'});
+  const config=existsSync(resolve(job,'render-job.json'))?JSON.parse(readFileSync(resolve(job,'render-job.json'))):{};
+  if(config.fullCheck){
+   const checked=run(hf,['check','--json'],{name:'full-check'});
+   if(!JSON.parse(checked.stdout).ok)throw Error('Full browser check did not pass');
+  }
+  const r=run(hf,['snapshot','--range',config.reviewRange||'3:8','--frames','8','--describe','false','--json'],{name:'motion-snapshot'});
   const data=JSON.parse(r.stdout);
   if(!data.ok)throw Error('Snapshot did not pass');
   const images=data.frames.map(f=>f.path);
