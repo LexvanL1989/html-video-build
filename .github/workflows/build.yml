@@ -9,7 +9,7 @@ on:
         type: choice
         options: [review, render]
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: html-video-build
   cancel-in-progress: false
@@ -34,10 +34,15 @@ jobs:
           npm install --no-audit --no-fund
       - name: Build and verify
         run: node build.mjs ${{ inputs.phase }}
-      - uses: actions/upload-artifact@v4
+      - name: Return encrypted result without artifact storage
         if: always()
-        with:
-          name: encrypted-${{ inputs.phase }}-${{ github.run_id }}
-          path: output.enc
-          retention-days: 1
-          if-no-files-found: error
+        run: |
+          test -f output.enc
+          test "$(stat -c%s output.enc)" -lt 90000000
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout --orphan result-${{ github.run_id }}
+          git rm -rf --cached .
+          git add -f output.enc
+          git commit -m 'Encrypted build result'
+          git push origin HEAD:refs/heads/result-${{ github.run_id }}
