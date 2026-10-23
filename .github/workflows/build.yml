@@ -30,13 +30,15 @@ jobs:
       - name: Install free build dependencies
         timeout-minutes: 5
         run: |
-          if ! command -v ffmpeg >/dev/null; then
-            sudo timeout 90 apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y -qq ffmpeg || {
-              sudo timeout 90 apt-get -o Dir::Etc::sourcelist=/dev/null -o Dir::Etc::sourceparts=sources.list.d -o Acquire::Retries=0 -o Acquire::http::Timeout=10 -o Acquire::https::Timeout=10 update -qq
-              sudo timeout 90 apt-get -o Acquire::Retries=1 install -y -qq ffmpeg
-            }
-          fi
-          command -v ffmpeg
+          mkdir -p "$RUNNER_TEMP/media-tools"
+          curl -fsSL --retry 2 --connect-timeout 15 --max-time 90 https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-linux-x64 -o "$RUNNER_TEMP/media-tools/ffmpeg"
+          curl -fsSL --retry 2 --connect-timeout 15 --max-time 90 https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffprobe-linux-x64 -o "$RUNNER_TEMP/media-tools/ffprobe"
+          cd "$RUNNER_TEMP/media-tools"
+          echo "e7e7fb30477f717e6f55f9180a70386c62677ef8a4d4d1a5d948f4098aa3eb99  ffmpeg" | sha256sum -c -
+          echo "4f231a1960d83e403d08f7971e271707bec278a9ae18e21b8b5b03186668450d  ffprobe" | sha256sum -c -
+          chmod +x ffmpeg ffprobe
+          echo "$RUNNER_TEMP/media-tools" >> "$GITHUB_PATH"
+          cd "$GITHUB_WORKSPACE"
           command -v google-chrome || command -v chromium
           npm install --no-audit --no-fund --fetch-retries=1 --fetch-timeout=60000
       - name: Build and verify
