@@ -5,6 +5,7 @@ import {createHash} from 'node:crypto';
 import sharp from 'sharp';
 import {encrypt,decrypt} from './crypto.mjs';
 import {renderCarousel} from './carousel.mjs';
+import {renderMonth} from './month.mjs';
 
 const phase=process.argv[2];
 if(!['review','render'].includes(phase))throw Error('Unsupported phase');
@@ -39,7 +40,9 @@ try{
  writeFileSync(resolve(out,'fingerprint-verification.json'),JSON.stringify({matches:true,files:Object.keys(fp).length}));
  console.log('Verified encrypted source; build phase started.');
  const config=existsSync(resolve(job,'render-job.json'))?JSON.parse(readFileSync(resolve(job,'render-job.json'))):{};
- if(config.kind==='carousel'){
+ if(config.kind==='month-stills'){
+  await renderMonth({job,out,config});
+ }else if(config.kind==='carousel'){
   await renderCarousel({job,out,config});
  }else if(phase==='review'){
   if(config.fullCheck){
