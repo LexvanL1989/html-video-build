@@ -3,6 +3,7 @@ export async function videoBatch({job,out,config,phase,hf,env}){
  const hash=f=>createHash('sha256').update(readFileSync(f)).digest('hex');
  for(const item of config.items){const cwd=resolve(job,item.project),dest=resolve(out,item.id);mkdirSync(dest,{recursive:true});let seq=0;const run=(cmd,args,name,allow=false)=>{const r=spawnSync(cmd,args,{cwd,env,encoding:'utf8',timeout:900000,maxBuffer:32*1024*1024});writeFileSync(resolve(dest,(name||'step-'+ ++seq)+'.stdout'),r.stdout||'');writeFileSync(resolve(dest,(name||'step-'+seq)+'.stderr'),r.stderr||'');if(r.status!==0&&!allow)throw Error(`${item.id}: ${name} failed`);return r};
  const music=resolve(cwd,'assets/music.wav');run('ffmpeg',['-y','-hide_banner','-threads','1','-ss',String(item.music_start),'-t','12','-i',resolve(cwd,'assets/disco-medusae-original.mp3'),'-af','loudnorm=I=-14:TP=-1:LRA=11,afade=t=in:st=0:d=0.08,afade=t=out:st=11.5:d=0.5','-ar','48000','-ac','2',music],'music-edit');
+ copyFileSync(music,resolve(dest,'music.wav'));
  const srcFP={};for(const f of item.source_files)srcFP[f]=hash(resolve(cwd,f));srcFP['assets/music.wav']=hash(music);writeFileSync(resolve(dest,'source-fingerprint.json'),JSON.stringify(srcFP,null,2));
  async function board(paths,name){const comps=await Promise.all(paths.map(async(p,n)=>({input:await sharp(p).resize(270,480).toBuffer(),left:n%4*270,top:Math.floor(n/4)*480})));await sharp({create:{width:1080,height:Math.ceil(paths.length/4)*480,channels:3,background:'#0C0C16'}}).composite(comps).jpeg({quality:93}).toFile(resolve(dest,name));}
  try{
