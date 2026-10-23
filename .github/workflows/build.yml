@@ -31,8 +31,10 @@ jobs:
         timeout-minutes: 5
         run: |
           if ! command -v ffmpeg >/dev/null; then
-            sudo timeout 120 apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update -qq
-            sudo timeout 120 apt-get -o Acquire::Retries=1 install -y -qq ffmpeg
+            sudo timeout 90 apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y -qq ffmpeg || {
+              sudo timeout 90 apt-get -o Dir::Etc::sourcelist=/dev/null -o Dir::Etc::sourceparts=sources.list.d -o Acquire::Retries=0 -o Acquire::http::Timeout=10 -o Acquire::https::Timeout=10 update -qq
+              sudo timeout 90 apt-get -o Acquire::Retries=1 install -y -qq ffmpeg
+            }
           fi
           command -v ffmpeg
           command -v google-chrome || command -v chromium
