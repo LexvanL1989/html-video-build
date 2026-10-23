@@ -6,6 +6,7 @@ import sharp from 'sharp';
 import {encrypt,decrypt} from './crypto.mjs';
 import {renderCarousel} from './carousel.mjs';
 import {renderMonth} from './month.mjs';
+import {videoBatch} from './video-batch.mjs';
 
 const phase=process.argv[2];
 if(!['review','render'].includes(phase))throw Error('Unsupported phase');
@@ -40,7 +41,9 @@ try{
  writeFileSync(resolve(out,'fingerprint-verification.json'),JSON.stringify({matches:true,files:Object.keys(fp).length}));
  console.log('Verified encrypted source; build phase started.');
  const config=existsSync(resolve(job,'render-job.json'))?JSON.parse(readFileSync(resolve(job,'render-job.json'))):{};
- if(config.kind==='month-stills'){
+ if(config.kind==='video-batch'){
+  await videoBatch({job,out,config,phase,hf,env});
+ }else if(config.kind==='month-stills'){
   await renderMonth({job,out,config});
  }else if(config.kind==='carousel'){
   await renderCarousel({job,out,config});
