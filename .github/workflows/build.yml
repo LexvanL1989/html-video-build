@@ -28,10 +28,15 @@ jobs:
         with:
           node-version: '22'
       - name: Install free build dependencies
+        timeout-minutes: 5
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg fonts-liberation libnss3 libatk-bridge2.0-0 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2t64 > /tmp/dependencies.log 2>&1
-          npm install --no-audit --no-fund
+          if ! command -v ffmpeg >/dev/null; then
+            sudo timeout 120 apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update -qq
+            sudo timeout 120 apt-get -o Acquire::Retries=1 install -y -qq ffmpeg
+          fi
+          command -v ffmpeg
+          command -v google-chrome || command -v chromium
+          npm install --no-audit --no-fund --fetch-retries=1 --fetch-timeout=60000
       - name: Build and verify
         run: node build.mjs ${{ inputs.phase }}
       - name: Return encrypted result without artifact storage
