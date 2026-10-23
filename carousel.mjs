@@ -1,5 +1,5 @@
 import {createServer} from 'node:http';
-import {readFileSync,writeFileSync,existsSync,statSync} from 'node:fs';
+import {readFileSync,writeFileSync,copyFileSync,existsSync,statSync} from 'node:fs';
 import {resolve,extname,sep} from 'node:path';
 import {createHash} from 'node:crypto';
 import puppeteer from 'puppeteer-core';
@@ -9,6 +9,9 @@ import sharp from 'sharp';
 export async function renderCarousel({job,out,config}){
  const w=config.width,h=config.height,count=config.slides;
  if(!Number.isInteger(count)||count<1||count>10||w!==1080||h!==1350)throw Error('Invalid carousel export dimensions/count');
+ const selected=config.renderSlides||Array.from({length:count},(_,i)=>i+1);
+ if(!Array.isArray(selected)||!selected.length||selected.some(n=>!Number.isInteger(n)||n<1||n>count))throw Error('Invalid selected slides');
+ const prior=config.reuseVerification?JSON.parse(readFileSync(resolve(job,config.reuseVerification))):null;
  const chrome=['/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium'].find(existsSync);
  if(!chrome)throw Error('Runner Chrome is unavailable');
  const mime={'.html':'text/html; charset=utf-8','.png':'image/png','.svg':'image/svg+xml','.ttf':'font/ttf','.json':'application/json'};
@@ -27,6 +30,13 @@ export async function renderCarousel({job,out,config}){
   page.on('request',r=>r.url().startsWith('http://127.0.0.1:')||r.url().startsWith('data:')?r.continue():r.abort());
   const files=[],checks=[];
   for(let n=1;n<=count;n++){
+   if(!selected.includes(n)){
+    const file=prior?.files[n-1],check=prior?.checks.find(c=>c.slide===n);
+    if(!prior?.passed||!file||!check||check.text!==config.texts?.[n-1])throw Error(`Slide ${n} has no matching prior check`);
+    const source=resolve(job,'exports',file.file),buf=readFileSync(source);
+    if(createHash('sha256').update(buf).digest('hex')!==file.sha256)throw Error(`Slide ${n} reuse hash mismatch`);
+    copyFileSync(source,resolve(out,file.file));files.push(file);checks.push({...check,reused_unchanged:true});continue;
+   }
    await page.goto(`http://127.0.0.1:${server.address().port}/${config.entry||'slides.html'}?slide=${n}`,{waitUntil:'networkidle0'});
    const ready=await page.evaluate(()=>window.slideReady);
    const layout=await page.evaluate(()=>{
@@ -42,6 +52,6 @@ export async function renderCarousel({job,out,config}){
   }
   const thumbs=await Promise.all(files.map(async(f,i)=>({input:await sharp(resolve(out,f.file)).resize(324,405).toBuffer(),left:i*324,top:0})));
   await sharp({create:{width:count*324,height:405,channels:3,background:'#0C0C16'}}).composite(thumbs).png().toFile(resolve(out,'carousel-overview.png'));
-  writeFileSync(resolve(out,'carousel-verification.json'),JSON.stringify({passed:true,browser:await browser.version(),files,checks,runtime_errors:failures,visual_review_pending:true},null,2));
+  writeFileSync(resolve(out,'carousel-verification.json'),JSON.stringify({passed:true,browser:await browser.version(),rendered_slides:selected,reused_slides:checks.filter(c=>c.reused_unchanged).map(c=>c.slide),files,checks,runtime_errors:failures,visual_review_pending:true},null,2));
  }finally{if(browser)await browser.close();await new Promise(r=>server.close(r))}
 }
