@@ -4,6 +4,7 @@ import {resolve,basename} from 'node:path';
 import {createHash} from 'node:crypto';
 import sharp from 'sharp';
 import {encrypt,decrypt} from './crypto.mjs';
+import {renderCarousel} from './carousel.mjs';
 
 const phase=process.argv[2];
 if(!['review','render'].includes(phase))throw Error('Unsupported phase');
@@ -37,8 +38,10 @@ try{
  }
  writeFileSync(resolve(out,'fingerprint-verification.json'),JSON.stringify({matches:true,files:Object.keys(fp).length}));
  console.log('Verified encrypted source; build phase started.');
- if(phase==='review'){
-  const config=existsSync(resolve(job,'render-job.json'))?JSON.parse(readFileSync(resolve(job,'render-job.json'))):{};
+ const config=existsSync(resolve(job,'render-job.json'))?JSON.parse(readFileSync(resolve(job,'render-job.json'))):{};
+ if(config.kind==='carousel'){
+  await renderCarousel({job,out,config});
+ }else if(phase==='review'){
   if(config.fullCheck){
    const checked=run(hf,['check','--json'],{name:'full-check'});
    if(!JSON.parse(checked.stdout).ok)throw Error('Full browser check did not pass');

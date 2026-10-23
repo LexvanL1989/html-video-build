@@ -1,1 +1,1 @@
-{"private":true,"type":"module","dependencies":{"hyperframes":"0.8.185","sharp":"0.34.5"}}
+{"private":true,"type":"module","dependencies":{"hyperframes":"0.8.185","sharp":"0.34.5","puppeteer-core":"25.10.0"}}
